@@ -1,0 +1,87 @@
+spring:
+  application:
+    name: henry-telemetry-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/henry_telemetry
+    username: henry
+    password: henry123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  # SEC: limita tamanho máximo do corpo da requisição para prevenir payload flooding e buffer overflow
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
+
+server:
+  port: 8443
+  # SEC: TLS 1.2+ obrigatório — criptografia ponta a ponta entre cliente, API e serviços externos
+  ssl:
+    enabled: true
+    key-store: classpath:keystore.p12
+    key-store-password: henry123
+    key-store-type: PKCS12
+    protocol: TLS
+    enabled-protocols: TLSv1.2,TLSv1.3
+  # SEC: garante que stack traces nunca aparecem em respostas de erro em produção
+  error:
+    include-stacktrace: never
+    include-message: never
+  # SEC: limita tamanho máximo de headers HTTP para prevenir header injection e DoS
+  tomcat:
+    max-http-response-header-size: 8KB
+    max-swallow-size: 1MB
+
+security:
+  jwt:
+    # SEC: segredo longo (256+ bits) para evitar ataques de força bruta no HMAC-SHA256
+    secret: henry-platform-super-secret-key-ford-zerotouch-2026-fiap
+    expiration-ms: 3600000        # 1 hora — SEC: expiração curta limita janela de ataque se token for comprometido
+    refresh-expiration-ms: 604800000  # 7 dias — SEC: refresh token com expiração maior mas rotacionado a cada uso
+
+  # SEC: chave AES para criptografia de campos sensíveis no banco (dados de saúde do veículo)
+  encryption:
+    key: henry-aes-field-encryption-key-32b
+
+  # SEC: chave HMAC para assinatura de integridade de payload em trânsito
+  payload-signature:
+    secret: henry-payload-hmac-secret-ford-2026
+
+  rate-limit:
+    # SEC: limite de 30 req/minuto por IP para endpoints públicos — previne scraping e brute force
+    capacity: 30
+    refill-tokens: 30
+    refill-minutes: 1
+
+  # SEC: número máximo de falhas de JWT por IP antes de logar como evento suspeito
+  suspicious-threshold: 5
+
+  # SEC: política de retenção — leituras mais antigas que este número de dias são elegíveis para anonimização
+  retention:
+    max-days: 90
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+logging:
+  level:
+    root: INFO
+    com.henryplatform: DEBUG
