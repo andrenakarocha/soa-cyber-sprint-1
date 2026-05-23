@@ -1,0 +1,43 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: henry_db
+    environment:
+      POSTGRES_DB: henry_telemetry
+      POSTGRES_USER: henry
+      POSTGRES_PASSWORD: henry123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U henry -d henry_telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: henry_app
+    ports:
+      - "8443:8443"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Banco aponta para o service "db" do compose (não localhost)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/henry_telemetry
+      SPRING_DATASOURCE_USERNAME: henry
+      SPRING_DATASOURCE_PASSWORD: henry123
+      # Segredos (em produção viriam de variáveis de ambiente ou secrets manager)
+      SECURITY_JWT_SECRET: henry-platform-super-secret-key-ford-zerotouch-2026-fiap
+      SECURITY_ENCRYPTION_KEY: henry-aes-field-encryption-key-32b
+      SECURITY_PAYLOAD_SIGNATURE_SECRET: henry-payload-hmac-secret-ford-2026
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost:8443/api-docs > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+
+volumes:
+  postgres_data:

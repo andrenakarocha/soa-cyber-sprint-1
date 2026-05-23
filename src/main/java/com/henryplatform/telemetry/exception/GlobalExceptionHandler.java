@@ -1,6 +1,7 @@
 package com.henryplatform.telemetry.exception;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +15,21 @@ import java.util.List;
 // SEC: handler global garante que nenhuma exceção não tratada vaze stack trace ou informação interna ao cliente
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // SEC: ConstraintViolationException cobre @Validated em @PathVariable/@RequestParam
+    //      MethodArgumentNotValidException cobre @Valid em @RequestBody — ambas retornam 400
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex) {
+        List<String> errors = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .toList();
+        return ResponseEntity.badRequest().body(ApiError.builder()
+                .status(400)
+                .message("Validation failed")
+                .errors(errors)
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {

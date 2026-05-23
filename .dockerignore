@@ -1,0 +1,7 @@
+target/
+.git/
+.gitignore
+architecture.mmd
+architecture.png
+smoke-test.sh
+*.md
