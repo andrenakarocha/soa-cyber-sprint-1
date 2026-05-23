@@ -2,6 +2,7 @@ package com.henryplatform.telemetry.exception;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler {
                 // SEC: mensagem genérica + lista de campos inválidos — sem revelar lógica interna
                 .message("Validation failed")
                 .errors(errors)
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.builder()
+                .status(404)
+                .message("Resource not found")
                 .timestamp(LocalDateTime.now())
                 .build());
     }
