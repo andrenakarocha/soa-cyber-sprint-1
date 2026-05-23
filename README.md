@@ -2,6 +2,14 @@
 
 **HENRY — Holistic Engagement Navigator for Retention & Yield**
 
+## Integrantes
+
+| Nome | RM |
+|---|---|
+| André Nakamatsu Rocha | RM555004 |
+| Matheus Rivera Montovaneli | RM555499 |
+| João Marcelo Furtado Romero | RM555199 |
+
 Microsserviço de telemetria da plataforma HENRY (Projeto Ford ZeroTouch). Recebe dados OBD-II de veículos Ford, calcula o **health score** e fornece a base de dados para o assistente HENRY engajar proativamente os clientes com manutenções preventivas — aumentando o VIN Share da rede oficial Ford.
 
 ---
