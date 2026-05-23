@@ -6,6 +6,22 @@ Microsserviço de telemetria da plataforma HENRY (Projeto Ford ZeroTouch). Receb
 
 ---
 
+## Arquitetura de Componentes
+
+![Arquitetura HENRY Telemetry Service](architecture.png)
+
+O diagrama acima mostra as cinco camadas do serviço:
+
+| Camada | Responsabilidade |
+|---|---|
+| **Clientes externos** | App mobile (Expo), Dashboard (React), sensores OBD-II do veículo |
+| **Filtros de segurança** | RateLimitFilter → PayloadSignatureFilter → JwtAuthFilter (nessa ordem) |
+| **Controllers** | Roteamento HTTP + RBAC declarativo por endpoint |
+| **Services** | Lógica de negócio isolada, auditoria e retenção |
+| **Repositórios / BD** | JPA + Flyway + PostgreSQL com campos sensíveis cifrados |
+
+---
+
 ## Stack
 
 | Camada | Tecnologia |
@@ -46,8 +62,10 @@ Flyway executa as migrations automaticamente na inicialização.
 ### 3. Acessar Swagger UI
 
 ```
-http://localhost:8080/swagger-ui.html
+https://localhost:8443/swagger-ui.html
 ```
+
+> O serviço roda com HTTPS/TLS 1.2+ na porta **8443**. Ao abrir no browser, aceite o certificado auto-assinado (`keystore.p12`) em ambiente de desenvolvimento.
 
 ---
 
@@ -79,7 +97,7 @@ http://localhost:8080/swagger-ui.html
 | Rate limiting | Bucket4j — 30 req/min por IP com token bucket | Proteção API 20pts |
 | CORS | Origins explícitas — sem wildcard | Proteção API 20pts |
 | Assinatura de payload | `PayloadSignatureFilter` — HMAC-SHA256 via header `X-Payload-Signature` | Proteção API 20pts |
-| Criptografia em repouso | AES via `EncryptedFieldConverter` (temperatura + óleo) | Privacidade 25pts |
+| Criptografia em repouso | AES-256/GCM via `EncryptedFieldConverter` — IV aleatório por registro (NIST SP 800-38D) | Privacidade 25pts |
 | Anonimização/retenção | `RetentionService` — job diário às 02:00 + endpoint manual | Privacidade 25pts |
 | Descarte de tokens expirados | `RefreshTokenRepository.deleteExpiredAndRevoked()` | Privacidade 25pts |
 | Proteção contra exposição acidental | Sem dados sensíveis em logs; errors genéricos; endpoints documentados | Privacidade 25pts |
@@ -120,3 +138,21 @@ Este serviço é parte do **Ford ZeroTouch**, solução desenvolvida para o Chal
 O fluxo completo: veículo OBD-II → MQTT → **telemetry-service** → health score → HENRY AI → agendamento proativo → check-in automático → rastreamento em tempo real → NPS via chat.
 
 Disciplinas cobertas por esta entrega: **SOA (Arquitetura Orientada a Serviços)** + **Cybersecurity**.
+
+---
+
+## Notas de Segurança Adicionais
+
+### Gestão de segredos
+
+Os valores de `security.jwt.secret`, `security.encryption.key` e `security.payload-signature.secret` estão definidos diretamente no `application.yml` para facilitar a execução local. Em ambiente de produção esses valores devem ser injetados via **variáveis de ambiente** ou um cofre de segredos (ex: HashiCorp Vault, AWS Secrets Manager):
+
+```bash
+export SECURITY_JWT_SECRET=<valor-gerado>
+export SECURITY_ENCRYPTION_KEY=<32-chars>
+export SECURITY_PAYLOAD_SIGNATURE_SECRET=<valor-gerado>
+```
+
+### Proteção contra XSS
+
+Esta API retorna exclusivamente `application/json` — não renderiza HTML em nenhum endpoint. Por design, a superfície de ataque de Cross-Site Scripting (XSS) é eliminada: sem template engine, sem interpolação de dados em HTML. A validação Bean Validation (`@Pattern`, `@Size`) nas entradas reforça esse isolamento.

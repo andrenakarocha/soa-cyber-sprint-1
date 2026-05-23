@@ -1,0 +1,85 @@
+graph TB
+    subgraph EXT["Clientes Externos"]
+        direction LR
+        OBD["🚗 Sensor OBD-II\nVeículo Ford"]
+        APP["📱 App Mobile\nReact Native / Expo"]
+        DASH["🖥️ Dashboard\nReact"]
+    end
+
+    subgraph SEC_LAYER["Filtros de Segurança — Spring Security Filter Chain"]
+        direction LR
+        RL["RateLimitFilter\nBucket4j · 30 req/min/IP"]
+        PS["PayloadSignatureFilter\nHMAC-SHA256\nX-Payload-Signature"]
+        JWT["JwtAuthFilter\nBearer Token\nDetecta brute-force"]
+    end
+
+    subgraph CTRL["Camada de Apresentação — Controllers"]
+        direction LR
+        AC["AuthController\n/api/v1/auth/**\npúblico"]
+        TC["TelemetryController\n/api/v1/vehicles/{vin}/**\nMECHANIC+"]
+        RC["RetentionController\n/api/v1/admin/**\nFORD_ADMIN"]
+    end
+
+    subgraph SVC["Camada de Serviço"]
+        direction LR
+        TS["TelemetryService\nRBAC · ownership check"]
+        HS["HealthScoreService\nCálculo do health score"]
+        RS["RefreshTokenService\nRotação de tokens"]
+        RET["RetentionService\nJob @02:00\nAnonimização LGPD"]
+        AL["AuditLogger\nTrilha imutável\nactor + ação + recurso"]
+        JP["JwtTokenProvider\nHMAC-SHA256\nexp 1h"]
+    end
+
+    subgraph REPO["Camada de Dados — Repositórios JPA"]
+        direction LR
+        VR["VehicleRepository"]
+        TR["TelemetryReadingRepository"]
+        AR["AuditLogRepository"]
+        TKR["RefreshTokenRepository"]
+    end
+
+    subgraph DB["PostgreSQL 16 — Gerenciado por Flyway"]
+        direction LR
+        V[("vehicles")]
+        R[("telemetry_readings\nAES-256/GCM")]
+        A[("audit_log")]
+        T[("refresh_tokens\nhash SHA-256")]
+    end
+
+    OBD -->|"HTTPS / TLS 1.2+"| RL
+    APP -->|"HTTPS / TLS 1.2+"| RL
+    DASH -->|"HTTPS / TLS 1.2+"| RL
+
+    RL --> PS --> JWT
+
+    JWT --> AC
+    JWT --> TC
+    JWT --> RC
+
+    AC --> RS
+    AC --> JP
+    TC --> TS
+    RC --> RET
+
+    TS --> HS
+    TS --> VR
+    TS --> TR
+    TS --> AL
+
+    RS --> TKR
+    RET --> TR
+    RET --> TKR
+    RET --> AL
+
+    VR --> V
+    TR -->|"EncryptedFieldConverter\nAES-256/GCM"| R
+    AR --> A
+    TKR --> T
+    AL --> AR
+
+    style EXT fill:#1a3a5c,color:#fff,stroke:#4a9eed
+    style SEC_LAYER fill:#5c1a1a,color:#fff,stroke:#ee4a4a
+    style CTRL fill:#1a4a2e,color:#fff,stroke:#4aee7a
+    style SVC fill:#3a2a5c,color:#fff,stroke:#9a4aee
+    style REPO fill:#4a3a1a,color:#fff,stroke:#ee9a4a
+    style DB fill:#1a3a4a,color:#fff,stroke:#4aeedd
