@@ -38,12 +38,34 @@ O diagrama acima mostra as cinco camadas do serviço:
 
 ## Como rodar
 
-### Pré-requisitos
-- Java 21
-- Maven 3.9+
-- PostgreSQL rodando localmente
+### Docker (recomendado)
 
-### 1. Criar banco de dados
+Pré-requisito: [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado.
+
+```bash
+docker compose up -d --build
+```
+
+O compose sobe o PostgreSQL 16, aguarda o banco ficar saudável e então inicia a aplicação. As migrations Flyway e o veículo de demo (Ford Ranger Raptor) são aplicados automaticamente no primeiro boot.
+
+```
+https://localhost:8443/swagger-ui.html
+```
+
+> Ao abrir no browser, aceite o certificado auto-assinado — é esperado em ambiente de desenvolvimento.
+
+Para derrubar o ambiente:
+
+```bash
+docker compose down          # mantém o volume de dados
+docker compose down -v       # apaga tudo, inclusive o banco
+```
+
+---
+
+### Execução local (alternativa)
+
+Pré-requisitos: Java 21, Maven 3.9+, PostgreSQL rodando localmente.
 
 ```sql
 CREATE DATABASE henry_telemetry;
@@ -51,21 +73,9 @@ CREATE USER henry WITH PASSWORD 'henry123';
 GRANT ALL PRIVILEGES ON DATABASE henry_telemetry TO henry;
 ```
 
-### 2. Rodar a aplicação
-
 ```bash
 mvn spring-boot:run
 ```
-
-Flyway executa as migrations automaticamente na inicialização.
-
-### 3. Acessar Swagger UI
-
-```
-https://localhost:8443/swagger-ui.html
-```
-
-> O serviço roda com HTTPS/TLS 1.2+ na porta **8443**. Ao abrir no browser, aceite o certificado auto-assinado (`keystore.p12`) em ambiente de desenvolvimento.
 
 ---
 
@@ -139,20 +149,3 @@ O fluxo completo: veículo OBD-II → MQTT → **telemetry-service** → health 
 
 Disciplinas cobertas por esta entrega: **SOA (Arquitetura Orientada a Serviços)** + **Cybersecurity**.
 
----
-
-## Notas de Segurança Adicionais
-
-### Gestão de segredos
-
-Os valores de `security.jwt.secret`, `security.encryption.key` e `security.payload-signature.secret` estão definidos diretamente no `application.yml` para facilitar a execução local. Em ambiente de produção esses valores devem ser injetados via **variáveis de ambiente** ou um cofre de segredos (ex: HashiCorp Vault, AWS Secrets Manager):
-
-```bash
-export SECURITY_JWT_SECRET=<valor-gerado>
-export SECURITY_ENCRYPTION_KEY=<32-chars>
-export SECURITY_PAYLOAD_SIGNATURE_SECRET=<valor-gerado>
-```
-
-### Proteção contra XSS
-
-Esta API retorna exclusivamente `application/json` — não renderiza HTML em nenhum endpoint. Por design, a superfície de ataque de Cross-Site Scripting (XSS) é eliminada: sem template engine, sem interpolação de dados em HTML. A validação Bean Validation (`@Pattern`, `@Size`) nas entradas reforça esse isolamento.
